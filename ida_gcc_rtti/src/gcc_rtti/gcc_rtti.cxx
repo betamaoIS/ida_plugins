@@ -67,19 +67,19 @@ void gcc_rtti_t::run()
 	// that means also using standard printf (not qprintf)
 	utils::operating_system_t::create_console();
 
-	printf("Looking for standard type info classes\n");
+	msg("Looking for standard type info classes\n");
 	find_type_info(TI_TINFO);
 	find_type_info(TI_CTINFO);
 	find_type_info(TI_SICTINFO);
 	find_type_info(TI_VMICTINFO);
 
-	printf("Looking for simple classes\n");
+	msg("Looking for simple classes\n");
 	handle_classes(TI_CTINFO, &gcc_rtti_t::format_type_info);
 
-	printf("Looking for single-inheritance classes\n");
+	msg("Looking for single-inheritance classes\n");
 	handle_classes(TI_SICTINFO, &gcc_rtti_t::format_si_type_info);
 
-	printf("Looking for multiple-inheritance classes\n");
+	msg("Looking for multiple-inheritance classes\n");
 	handle_classes(TI_VMICTINFO, &gcc_rtti_t::format_vmi_type_info);
 
 	info("Success, found %u classes.", static_cast<uint>(m_classes.size()));
@@ -138,9 +138,11 @@ void gcc_rtti_t::initialize_segments_data()
 		}
 
 		segcode.m_data.resize(static_cast<size_t>(segcode.m_end_ea - segcode.m_start_ea));
+		msg("find segment %s\n", segment_name.c_str());
 		if (!get_bytes(&segcode.m_data[0], segcode.m_data.size(), segcode.m_start_ea, GMB_READALL))
 		{
-			warning("get_bytes() returned failure, expect problems.. [" ADDR_FORMAT " - " ADDR_FORMAT "]", segcode.m_start_ea, segcode.m_end_ea);
+			warning("get_bytes() returned failure at %s , expect problems.. [" ADDR_FORMAT " - " ADDR_FORMAT "]",segment_name.c_str(), segcode.m_start_ea, segcode.m_end_ea);
+			continue;
 		}
 
 		m_segments_data.push_back(segcode);
@@ -179,7 +181,7 @@ void gcc_rtti_t::find_type_info(const ti_types_t idx)
 		return;
 	}
 
-	printf("found %d at " ADDR_FORMAT "\n", static_cast<int>(idx), ti_start);
+	msg("found %d at " ADDR_FORMAT "\n", static_cast<int>(idx), ti_start);
 	const ea_t ea = format_type_info(ti_start);
 	if (idx >= TI_CTINFO)
 	{
@@ -204,8 +206,21 @@ void gcc_rtti_t::handle_classes(ti_types_t idx, ea_t(gcc_rtti_t::*const formatte
 
 	if (address == BADADDR)
 	{
-		printf("Could not find vtable for %s\n", ti_names[idx]);
-		return;
+		switch (idx)
+		{
+		/*case gcc_rtti_t::TI_CTINFO:  // todo :????
+			address = 0x552CDA0;
+			break;
+		case gcc_rtti_t::TI_SICTINFO:
+			address = 0x552DC00;
+			break;
+		case gcc_rtti_t::TI_VMICTINFO:
+			address = 0x552DA80;
+			break;*/
+		default:
+			msg("Could not find vtable for %s\n", ti_names[idx]);
+			return;
+		}
 	}
 
 	idx = TI_TINFO;
@@ -217,7 +232,7 @@ void gcc_rtti_t::handle_classes(ti_types_t idx, ea_t(gcc_rtti_t::*const formatte
 	{
 		xrefs.clear();
 
-		printf("Looking for refs to vtable " ADDR_FORMAT "\n", address);
+		msg("Looking for refs to vtable " ADDR_FORMAT "\n", address);
 
 		if (is_spec_ea(address))
 		{
@@ -262,7 +277,7 @@ void gcc_rtti_t::handle_classes(ti_types_t idx, ea_t(gcc_rtti_t::*const formatte
 				continue;
 			}
 
-			printf("found %s at " ADDR_FORMAT "\n", name.c_str(), xref.m_address);
+			msg("found %s at " ADDR_FORMAT "\n", name.c_str(), xref.m_address);
 			(this->*formatter)(xref.m_address);
 			handled[xref.m_address] = true;
 		}
@@ -329,7 +344,7 @@ ea_t gcc_rtti_t::format_type_info(const ea_t address)
 
 	if (!utils::is_bad_addr(vtb))
 	{
-		printf("vtable for %s at " ADDR_FORMAT "\n", proper_name.c_str(), vtb);
+		msg("vtable for %s at " ADDR_FORMAT "\n", proper_name.c_str(), vtb);
 		format_struct(vtb, "pp");
 		set_name(vtb, (sstring_t("__ZTV") + proper_name).c_str(), SN_NOWARN);
 	}
@@ -372,7 +387,7 @@ ea_t gcc_rtti_t::format_vmi_type_info(const ea_t address)
 	const uint32_t base_count = get_32bit(addr - sizeof(uint32_t));
 	if (base_count > 100)
 	{
-		printf(ADDR_FORMAT ": over 100 base classes (%u)(" ADDR_FORMAT ")?!\n", address, base_count, static_cast<ea_t>(addr - sizeof(uint32_t)));
+		msg(ADDR_FORMAT ": over 100 base classes (%u)(" ADDR_FORMAT ")?!\n", address, base_count, static_cast<ea_t>(addr - sizeof(uint32_t)));
 		return BADADDR;
 	}
 
@@ -458,7 +473,7 @@ gcc_rtti_t *gcc_rtti_t::instance()
 	return s_instance;
 }
 
-int idaapi gcc_rtti_t::init_s(void)
+plugmod_t* idaapi gcc_rtti_t::init_s(void)
 {
 	if (s_instance)
 	{

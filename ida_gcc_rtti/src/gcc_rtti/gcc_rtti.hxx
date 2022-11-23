@@ -35,7 +35,7 @@ public:
 	static gcc_rtti_t *instance();
 
 public:
-	static  int idaapi init_s(void);
+	static  plugmod_t* idaapi init_s(void);
 	static bool idaapi run_s(size_t arg);
 	static void idaapi term_s();
 

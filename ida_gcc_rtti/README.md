@@ -1,3 +1,9 @@
+# 说明
+在vs2021+sdk10上编译的，如果啥类的没发现试试是不是那几个typeinfo符号没找到，可以先硬编码一下...
+
+来源： https://github.com/mwl4/ida_gcc_rtti
+
+
 # IDA GCC RTTI
 
 ##### This is Class informer plugin for Interactive Disassembler (IDA) which parses GCC RTTI
